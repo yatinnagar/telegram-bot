@@ -1,200 +1,156 @@
-import { Bot, InlineKeyboard, webhookCallback } from "grammy";
-import { chunk } from "lodash";
-import express from "express";
-import { applyTextEffect, Variant } from "./textEffects";
+const { Telegraf } = require('telegraf')
+const { axios} = require('axios');
+const fetch =require('isomorphic-fetch')
 
-import type { Variant as TextEffectVariant } from "./textEffects";
+// const puppeteer = require('puppeteer');
+// const fs=require("fs/promises")
 
-// Create a bot using the Telegram token
-const bot = new Bot(process.env.TELEGRAM_TOKEN || "");
+require('dotenv').config()
 
-// Handle the /yo command to greet the user
-bot.command("yo", (ctx) => ctx.reply(`Yo ${ctx.from?.username}`));
 
-// Handle the /effect command to apply text effects using an inline keyboard
-type Effect = { code: TextEffectVariant; label: string };
-const allEffects: Effect[] = [
-  {
-    code: "w",
-    label: "Monospace",
-  },
-  {
-    code: "b",
-    label: "Bold",
-  },
-  {
-    code: "i",
-    label: "Italic",
-  },
-  {
-    code: "d",
-    label: "Doublestruck",
-  },
-  {
-    code: "o",
-    label: "Circled",
-  },
-  {
-    code: "q",
-    label: "Squared",
-  },
-];
 
-const effectCallbackCodeAccessor = (effectCode: TextEffectVariant) =>
-  `effect-${effectCode}`;
 
-const effectsKeyboardAccessor = (effectCodes: string[]) => {
-  const effectsAccessor = (effectCodes: string[]) =>
-    effectCodes.map((code) =>
-      allEffects.find((effect) => effect.code === code)
-    );
-  const effects = effectsAccessor(effectCodes);
+const bot = new Telegraf(process.env.BOT_TOKEN)
 
-  const keyboard = new InlineKeyboard();
-  const chunkedEffects = chunk(effects, 3);
-  for (const effectsChunk of chunkedEffects) {
-    for (const effect of effectsChunk) {
-      effect &&
-        keyboard.text(effect.label, effectCallbackCodeAccessor(effect.code));
+
+bot.start((ctx) => {
+    let message = ` Please use the /fact command to receive a new fact`
+    // ctx.reply(message)
+  message=`use the /uselessfacts command to know an useless fact `
+  ctx.reply(message)
+  message=`use the /lol command to receive a random joke`
+  ctx.reply(message)
+  message=`use the /score command to get live score of a cricket match`
+  ctx.reply(message)
+   message=`use the /quote command to get a quote `
+  ctx.reply(message)
+  message=`use the /about command to know owner info`
+  ctx.reply(message)
+  
+
+})
+const fetchMydata =(fetchurl) =>{
+
+    return fetch(fetchurl,{
+        method:'GET'
+    })
+    .then(response => {
+        return response.json();
+    })
+    .catch(err => console.log(err));
+
+};
+
+
+bot.command('fact',async(ctx)=>{
+  try {
+        
+    
+      
+       const fetchurl=`https://useless-facts.sameerkumar.website/api`;
+       
+
+       const parsedData=await fetchMydata(fetchurl);
+      
+     await ctx.reply(parsedData.data);
+     
+       
     }
-    keyboard.row();
-  }
+  catch (error) {
+        console.log('error', error)
+        ctx.reply('error')
+    }
+  ctx.answerCbQuery()
+})
 
-  return keyboard;
-};
+bot.command('about', async (ctx) => {
+    try {
+        ctx.reply('made by YN')
+     
+    } catch (error) {
+        console.log('error', error)
+        ctx.reply('error')
+    }
+})
 
-const textEffectResponseAccessor = (
-  originalText: string,
-  modifiedText?: string
-) =>
-  `Original: ${originalText}` +
-  (modifiedText ? `\nModified: ${modifiedText}` : "");
+// bot.command('fact', async (ctx) => {
+//     try {
+//         ctx.reply('Generating image, Please wait !!!')
+//         let imagePath = `./temp/${uuidV4()}.jpg`
+//         await factGenerator.generateImage(imagePath)
+//         await ctx.replyWithPhoto({ source: imagePath })
+//         factGenerator.deleteImage(imagePath)
+//     } catch (error) {
+//         console.log('error', error)
+//         ctx.reply('error sending image')
+//     }
+// })
 
-const parseTextEffectResponse = (
-  response: string
-): {
-  originalText: string;
-  modifiedText?: string;
-} => {
-  const originalText = (response.match(/Original: (.*)/) as any)[1];
-  const modifiedTextMatch = response.match(/Modified: (.*)/);
+bot.command('quote', async (ctx) => {
+    try {
+        
+    
+      
+       const fetchurl=`https://api-quote-yn.vercel.app/`;
+       
+       const parsedData=await fetchMydata(fetchurl);
+      
+      
+      
+     await ctx.reply(`"${parsedData.quoteText}" \n - ${parsedData.personName}`);
+    
+    }
+  catch (error) {
+        console.log('error', error)
+        ctx.reply('error')
+    }
+})
+bot.command('uselessfacts', async (ctx) => {
+    try {
+        
+      
+       const fetchurl=`https://useless-facts.sameerkumar.website/api`;
 
-  let modifiedText;
-  if (modifiedTextMatch) modifiedText = modifiedTextMatch[1];
+  const parsedData=await fetchMydata(fetchurl);
+      
+     await ctx.reply(parsedData.data);
+      
+      
+     
+       
+    }
+  catch (error) {
+        console.log('error', error)
+        ctx.reply('error')
+    }
+})
 
-  if (!modifiedTextMatch) return { originalText };
-  else return { originalText, modifiedText };
-};
 
-bot.command("effect", (ctx) =>
-  ctx.reply(textEffectResponseAccessor(ctx.match), {
-    reply_markup: effectsKeyboardAccessor(
-      allEffects.map((effect) => effect.code)
-    ),
-  })
-);
+bot.command('score', async (ctx) => {
+    try {
+        //www.cricbuzz.com/live-cricket-scores/41731/`;
+      
+      // let cbUrl=temp;
+     let temp='https://www.cricbuzz.com/live-cricket-scores/46532/sl-vs-aus-4th-odi-australia-tour-of-sri-lanka-2022';
+       let fetchurl=`https://cricket-api.vercel.app/cri.php?url=${temp}`;
+       
 
-// Handle inline queries
-const queryRegEx = /effect (monospace|bold|italic) (.*)/;
-bot.inlineQuery(queryRegEx, async (ctx) => {
-  const fullQuery = ctx.inlineQuery.query;
-  const fullQueryMatch = fullQuery.match(queryRegEx);
-  if (!fullQueryMatch) return;
+     const parsedData=await fetchMydata(fetchurl);
+      
+     
+      const {title,current,batsman,batsmanrun,ballsfaced,batsmantwo,batsmantworun,batsmantwoballsfaced,lastwicket,bowler,bowlerover,bowlerruns,bowlerwickets}= parsedData.livescore;
+      const {bowlertwo,bowletworover,bowlertworuns,bowlertwowickets}=parsedData.livescore;
+     
+     await ctx.reply('parsedData.livescore')
+      
+  //   await ctx.reply('........................\n\n'+`${title}\n\n ${current}\n\n ${batsman}  ${batsmanrun} ${ballsfaced} \n ${batsmantwo}  ${batsmantworun} ${batsmantwoballsfaced}\n 
+  // ${bowler} O:${bowlerover} R:${bowlerruns} W:${bowlerwickets} \nlast Wkt: ${lastwicket}\n`+
+  //     '\n........................')
+    }
+  catch (error) {
+        console.log('error', error)
+        ctx.reply('error ')
+    }
+})
 
-  const effectLabel = fullQueryMatch[1];
-  const originalText = fullQueryMatch[2];
-
-  const effectCode = allEffects.find(
-    (effect) => effect.label.toLowerCase() === effectLabel.toLowerCase()
-  )?.code;
-  const modifiedText = applyTextEffect(originalText, effectCode as Variant);
-
-  await ctx.answerInlineQuery(
-    [
-      {
-        type: "article",
-        id: "text-effect",
-        title: "Text Effects",
-        input_message_content: {
-          message_text: `Original: ${originalText}
-Modified: ${modifiedText}`,
-          parse_mode: "HTML",
-        },
-        reply_markup: new InlineKeyboard().switchInline("Share", fullQuery),
-        url: "http://t.me/EludaDevSmarterBot",
-        description: "Create stylish Unicode text, all within Telegram.",
-      },
-    ],
-    { cache_time: 30 * 24 * 3600 } // one month in seconds
-  );
-});
-
-// Return empty result list for other queries.
-bot.on("inline_query", (ctx) => ctx.answerInlineQuery([]));
-
-// Handle text effects from the effect keyboard
-for (const effect of allEffects) {
-  const allEffectCodes = allEffects.map((effect) => effect.code);
-
-  bot.callbackQuery(effectCallbackCodeAccessor(effect.code), async (ctx) => {
-    const { originalText } = parseTextEffectResponse(ctx.msg?.text || "");
-    const modifiedText = applyTextEffect(originalText, effect.code);
-
-    await ctx.editMessageText(
-      textEffectResponseAccessor(originalText, modifiedText),
-      {
-        reply_markup: effectsKeyboardAccessor(
-          allEffectCodes.filter((code) => code !== effect.code)
-        ),
-      }
-    );
-  });
-}
-
-// Handle the /about command
-const aboutUrlKeyboard = new InlineKeyboard().url(
-  "Host your own bot for free.",
-  "https://cyclic.sh/"
-);
-
-// Suggest commands in the menu
-bot.api.setMyCommands([
-  { command: "yo", description: "Be greeted by the bot" },
-  {
-    command: "effect",
-    description: "Apply text effects on the text. (usage: /effect [text])",
-  },
-]);
-
-// Handle all other messages and the /start command
-const introductionMessage = `Hello! I'm a Telegram bot.
-I'm powered by Cyclic, the next-generation serverless computing platform.
-
-<b>Commands</b>
-/yo - Be greeted by me
-/effect [text] - Show a keyboard to apply text effects to [text]`;
-
-const replyWithIntro = (ctx: any) =>
-  ctx.reply(introductionMessage, {
-    reply_markup: aboutUrlKeyboard,
-    parse_mode: "HTML",
-  });
-
-bot.command("start", replyWithIntro);
-bot.on("message", replyWithIntro);
-
-// Start the server
-if (process.env.NODE_ENV === "production") {
-  // Use Webhooks for the production server
-  const app = express();
-  app.use(express.json());
-  app.use(webhookCallback(bot, "express"));
-
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Bot listening on port ${PORT}`);
-  });
-} else {
-  // Use Long Polling for development
-  bot.start();
-}
+bot.launch()
